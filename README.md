@@ -35,7 +35,7 @@ go build -o rift ./cmd/rift
 OR
 
 ```bash
-go install github.com/yourusername/rift/cmd/rift@latest
+go install github.com/phenixrizen/rift/cmd/rift@latest
 ```
 
 ## Configuration
