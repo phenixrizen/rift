@@ -7,7 +7,7 @@ import (
 )
 
 // Commit can be set with -ldflags "-X github.com/phenixrizen/rift/internal/version.Commit=<sha>".
-var Commit = ""
+var Commit = "v0.0.1"
 
 func ResolveCommit() string {
 	if c := strings.TrimSpace(Commit); c != "" {
@@ -25,7 +25,7 @@ func ResolveCommit() string {
 	if c := strings.TrimSpace(os.Getenv("RIFT_COMMIT")); c != "" {
 		return c
 	}
-	return "v0.0.1"
+	return "dev"
 }
 
 func ShortCommit() string {
