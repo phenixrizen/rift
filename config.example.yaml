@@ -1,0 +1,16 @@
+sso_start_url: https://example.awsapps.com/start
+sso_region: us-east-1
+regions:
+  - us-east-1
+  - us-west-2
+
+# Namespace defaults by inferred environment.
+namespace_defaults:
+  prod: kube-system
+  staging: default
+  dev: default
+  int: default
+  other: default
+
+# Discover cluster namespaces during sync.
+discover_namespaces: true
