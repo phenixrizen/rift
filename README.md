@@ -153,7 +153,7 @@ rift graph --role admin --format json
 Rift infers `env` from names:
 
 - contains `prod` -> `prod`
-- contains `staging` or `stage` -> `staging`
+- contains `staging` or `stage` -> `stg`
 - contains `dev` or `development` -> `dev`
 - contains `int` or `integration` -> `int`
 - otherwise -> `other`
