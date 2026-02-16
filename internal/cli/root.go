@@ -82,6 +82,7 @@ func NewRootCommand() (*cobra.Command, error) {
 		newUseCmd(app),
 		newUICmd(app),
 		newGraphCmd(app),
+		newVersionCmd(),
 	)
 	return cmd, nil
 }
