@@ -113,7 +113,7 @@ func newUIModel(app *App, st state.State) uiModel {
 	}
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
-	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("45")).Bold(true)
+	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true)
 	m.spin = sp
 	m.modalVP = viewport.New(1, 1)
 	m.modalVP.MouseWheelEnabled = true
@@ -218,6 +218,7 @@ func (m uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.searchOn = false
 				m.search.Blur()
 				m.applyFilter()
+				m.syncTableLayout()
 				return m, nil
 			}
 			var cmd tea.Cmd
@@ -242,6 +243,7 @@ func (m uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.searchOn = true
 			m.search.Focus()
 			m.status = "search mode: type to filter (enter/esc close)"
+			m.syncTableLayout()
 			return m, nil
 		case "s":
 			m.busy = true
@@ -268,6 +270,7 @@ func (m uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	m.syncTableLayout()
 	var cmd tea.Cmd
 	m.table, cmd = m.table.Update(msg)
 	return m, cmd
@@ -406,7 +409,7 @@ func (m uiModel) traverseLogoView() string {
 }
 
 func (m uiModel) shortcutsBoxView(maxWidth int) string {
-	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("45")).Bold(true)
+	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("81")).Bold(true)
 	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("246"))
 	rows := []string{
 		keyStyle.Render("</>") + " " + labelStyle.Render("search"),
@@ -468,7 +471,7 @@ func (m uiModel) rightPaneView(width, height int) string {
 }
 
 func (m uiModel) hotkeysLineView() string {
-	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("45")).Bold(true)
+	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("81")).Bold(true)
 	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("246"))
 	sep := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("  ")
 
@@ -530,7 +533,7 @@ func (m uiModel) renderModal(termWidth, termHeight int) string {
 	content := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
 	box := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("45")).
+		BorderForeground(lipgloss.Color("81")).
 		Padding(0, 1).
 		Render(content)
 	boxHeight := lipgloss.Height(box)
@@ -666,7 +669,7 @@ func (m uiModel) searchBoxView(outerWidth int) string {
 		contentWidth = 1
 	}
 
-	title := lipgloss.NewStyle().Foreground(lipgloss.Color("45")).Bold(true).Render("SEARCH")
+	title := lipgloss.NewStyle().Foreground(lipgloss.Color("81")).Bold(true).Render("SEARCH")
 	hint := lipgloss.NewStyle().Foreground(lipgloss.Color("246")).Render("type to filter   enter/esc close")
 	topLine := padToWidth(cutRunes(title+"  "+hint, contentWidth), contentWidth)
 
@@ -679,7 +682,7 @@ func (m uiModel) searchBoxView(outerWidth int) string {
 	content := topLine + "\n" + fieldLine
 	box := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("45")).
+		BorderForeground(lipgloss.Color("81")).
 		Padding(0, 1).
 		Render(content)
 
@@ -768,14 +771,67 @@ func (m *uiModel) detailView(width int) string {
 }
 
 func (m *uiModel) resize() {
-	if m.width <= 0 || m.height <= 0 {
-		return
+	m.syncTableLayout()
+}
+
+func (m *uiModel) syncTableLayout() {
+	termWidth := m.width
+	if termWidth <= 0 {
+		termWidth = 130
 	}
-	height := m.height - 6
-	if height < 8 {
-		height = 8
+	termHeight := m.height
+	if termHeight <= 0 {
+		termHeight = 40
 	}
-	m.table.SetHeight(height)
+
+	leftOuterWidth := int(float64(termWidth) * 0.62)
+	if leftOuterWidth < 22 {
+		leftOuterWidth = 22
+	}
+	if leftOuterWidth > termWidth-20 {
+		leftOuterWidth = termWidth - 20
+	}
+	rightOuterWidth := termWidth - leftOuterWidth
+	if rightOuterWidth < 20 {
+		rightOuterWidth = 20
+		leftOuterWidth = termWidth - rightOuterWidth
+	}
+	if leftOuterWidth < 1 {
+		leftOuterWidth = 1
+	}
+
+	header := m.topHeaderView()
+	top := header
+	if m.searchOn {
+		top = lipgloss.JoinVertical(lipgloss.Left, header, m.searchBoxView(leftOuterWidth))
+	}
+
+	statusText := m.status
+	if m.busy {
+		statusText = m.spin.View() + " " + m.busyText
+	}
+	status := lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Render(statusText)
+	hotkeys := m.hotkeysLineView()
+
+	paneHeight := termHeight - lipgloss.Height(top) - lipgloss.Height(status) - lipgloss.Height(hotkeys)
+	if paneHeight < 5 {
+		paneHeight = 5
+	}
+	innerPaneHeight := paneHeight - 2
+	if innerPaneHeight < 1 {
+		innerPaneHeight = 1
+	}
+	tableHeight := innerPaneHeight - 1
+	if tableHeight < 1 {
+		tableHeight = 1
+	}
+	leftInnerWidth := leftOuterWidth - 2
+	if leftInnerWidth < 1 {
+		leftInnerWidth = 1
+	}
+
+	m.table.SetHeight(tableHeight)
+	m.table.SetWidth(leftInnerWidth)
 }
 
 func runUISyncCmd(app *App) tea.Cmd {

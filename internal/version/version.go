@@ -25,7 +25,7 @@ func ResolveCommit() string {
 	if c := strings.TrimSpace(os.Getenv("RIFT_COMMIT")); c != "" {
 		return c
 	}
-	return "dev"
+	return "v0.0.1"
 }
 
 func ShortCommit() string {
