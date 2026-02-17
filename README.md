@@ -25,6 +25,7 @@ in sync over time as new accounts and clusters are added.
 - AWS CLI v2 installed and configured for SSO
 - Valid SSO login cache (`rift auth` or `aws sso login`)
 - `kubectl` for `rift use` and TUI context switching
+- `k9s` for TUI context-specific namespace browsing
 
 ## Installation
 
@@ -64,6 +65,7 @@ See `config.example.yaml` for all supported config keys.
 ## Command Usage
 
 ### `rift init`
+
 Interactive setup:
 
 - SSO start URL
@@ -72,6 +74,7 @@ Interactive setup:
 Writes config and validates local SSO token cache.
 
 ### `rift auth [--no-browser]`
+
 Ensures `[sso-session rift]` in `~/.aws/config` from `config.yaml` and runs:
 
 - `aws sso login --sso-session rift`
@@ -95,11 +98,13 @@ Safety:
 - Never touches non-`rift-` user entries
 
 ### `rift list`
+
 Prints:
 
 `Env | Account | Role | Region | Cluster | AWS Profile | Kube Context`
 
 ### `rift use <filter>`
+
 Fuzzy-matches known context names from state and runs:
 
 ```bash
@@ -107,6 +112,7 @@ kubectl config use-context <match>
 ```
 
 ### `rift ui`
+
 TUI layout:
 
 - Top-left: `TRAVERSE THE CLOUD RIFT` + version hash
@@ -120,6 +126,7 @@ TUI layout:
 Keybinds:
 
 - `/` open boxed search input
+- `\` clear search filter
 - `enter` use context
 - `k` launch k9s on namespace selector for selected context
 - `s` sync
@@ -127,6 +134,7 @@ Keybinds:
 - `q` quit
 
 ### `rift graph [flags]`
+
 Builds `Account -> Role -> Cluster -> Namespace` topology (namespace optional).
 
 Flags:

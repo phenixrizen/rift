@@ -3,10 +3,12 @@ package cli
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
@@ -15,6 +17,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/phenixrizen/rift/internal/discovery"
 	"github.com/phenixrizen/rift/internal/state"
 	"github.com/phenixrizen/rift/internal/version"
 	"github.com/spf13/cobra"
@@ -42,6 +45,16 @@ type syncDoneMsg struct {
 	report SyncReport
 	err    error
 	logs   string
+}
+
+type authCheckDoneMsg struct {
+	needsAuth bool
+	err       error
+}
+
+type authDoneMsg struct {
+	err  error
+	logs string
 }
 
 type refreshDoneMsg struct {
@@ -122,7 +135,7 @@ func newUIModel(app *App, st state.State) uiModel {
 }
 
 func (m uiModel) Init() tea.Cmd {
-	return nil
+	return runUIAuthCheckCmd(m.app)
 }
 
 func (m uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -134,6 +147,35 @@ func (m uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.modalOn {
 			m.resizeModalViewport(false)
 		}
+		return m, nil
+	case authCheckDoneMsg:
+		if msg.err != nil {
+			m.status = "auth check failed: " + msg.err.Error()
+			m.openModal("Auth Check Failed", msg.err.Error(), "", nil)
+			return m, nil
+		}
+		if !msg.needsAuth {
+			return m, nil
+		}
+		m.busy = true
+		m.busyText = "authenticating with AWS SSO..."
+		m.openModal(
+			"AWS SSO Login Required",
+			"No valid SSO token found.\nRunning rift auth now.\nApprove application: botocore-client-rift",
+			"",
+			nil,
+		)
+		return m, tea.Batch(runUIAuthCmd(m.app), m.spin.Tick)
+	case authDoneMsg:
+		m.busy = false
+		m.busyText = ""
+		if msg.err != nil {
+			m.status = "auth failed: " + msg.err.Error()
+			m.openModal("Auth Failed", msg.err.Error(), msg.logs, nil)
+			return m, nil
+		}
+		m.status = "auth complete"
+		m.openModal("Auth Complete", "AWS SSO login completed.", msg.logs, nil)
 		return m, nil
 	case syncDoneMsg:
 		m.busy = false
@@ -849,6 +891,44 @@ func runUISyncCmd(app *App) tea.Cmd {
 
 		report, err := app.RunSync(context.Background(), false)
 		return syncDoneMsg{report: report, err: err, logs: strings.TrimSpace(logBuf.String())}
+	}
+}
+
+func runUIAuthCheckCmd(app *App) tea.Cmd {
+	return func() tea.Msg {
+		cfg, err := app.loadConfig()
+		if err != nil {
+			return authCheckDoneMsg{err: err}
+		}
+		err = discovery.ValidateSSOLogin(cfg, time.Now().UTC())
+		if err == nil {
+			return authCheckDoneMsg{}
+		}
+		if errors.Is(err, discovery.ErrSSONotLoggedIn) {
+			return authCheckDoneMsg{needsAuth: true}
+		}
+		return authCheckDoneMsg{err: err}
+	}
+}
+
+func runUIAuthCmd(app *App) tea.Cmd {
+	return func() tea.Msg {
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		err := runAuthFlow(app, nil, &stdout, &stderr, false)
+
+		logParts := make([]string, 0, 2)
+		if out := strings.TrimSpace(stdout.String()); out != "" {
+			logParts = append(logParts, out)
+		}
+		if out := strings.TrimSpace(stderr.String()); out != "" {
+			logParts = append(logParts, out)
+		}
+
+		return authDoneMsg{
+			err:  err,
+			logs: strings.TrimSpace(strings.Join(logParts, "\n")),
+		}
 	}
 }
 
