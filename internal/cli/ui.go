@@ -24,6 +24,7 @@ import (
 )
 
 func newUICmd(app *App) *cobra.Command {
+	var filter string
 	cmd := &cobra.Command{
 		Use:   "ui",
 		Short: "Interactive Rift TUI",
@@ -33,11 +34,16 @@ func newUICmd(app *App) *cobra.Command {
 				return err
 			}
 			model := newUIModel(app, st)
+			if filter != "" {
+				model.search.SetValue(filter)
+				model.applyFilter()
+			}
 			prog := tea.NewProgram(model, tea.WithAltScreen())
 			_, err = prog.Run()
 			return err
 		},
 	}
+	cmd.Flags().StringVarP(&filter, "filter", "f", "", "Initial search filter")
 	return cmd
 }
 
